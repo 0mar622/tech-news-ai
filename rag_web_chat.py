@@ -1,97 +1,63 @@
-from langchain_community.tools.tavily_search import TavilySearchResults
-from langchain_community.llms import Ollama
-from langchain.agents import initialize_agent, AgentType
+from langchain_ollama import OllamaLLM
+from langchain_tavily import TavilySearch
 
-# 1. Load local model (Ollama)
-llm = Ollama(model="llama3.1:8b")
+llm = OllamaLLM(model="llama3.1:8b")
+search = TavilySearch(k=3)
 
-# 2. Load web search tool (Tavily)
-search = TavilySearchResults(k=3)
+# Store conversation history
+conversation_history = []
 
-# 3. Create agent with search + math + llm
-tools = [search]
-'''
-agent = initialize_agent(
-    tools=tools,
-    llm=llm,
-    agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-    handle_parsing_errors=True,
-    verbose=True,
-    max_iterations=6,
-    max_execution_time=60
-)
-'''
-
-chat_history = []  # Stores previous Q&A turns
-
-# 4. Chat loop
-print("Ask anything (type 'exit' to quit):")
 while True:
-    query = input("You: ")
-    if query.strip().lower() == "exit":
+    query = input("You: ").strip()
+    if query.lower() in {"exit", "quit"}:
         break
 
-    # 1. Run search manually
-    search_results = search._run(query)  # returns a list of dicts
+    # Step 1: Reformulate query if needed based on conversation history
+    if conversation_history:
+        reformulation_prompt = f"""Previous conversation:
+{chr(10).join(f"User: {entry['user']}\nAssistant: {entry['assistant']}" for entry in conversation_history)}
 
-    # 2. Extract top 3 snippet contents
-    # Flatten any nested lists and filter dicts with "content"
-    flattened = []
-    for item in search_results:
-        if isinstance(item, list):
-            flattened.extend([x for x in item if isinstance(x, dict)])
-        elif isinstance(item, dict):
-            flattened.append(item)
+Current user question: {query}
 
-    snippets = [r["content"] for r in flattened if "content" in r][:3]
+If this question refers to something from the previous conversation (like "it", "that", "how does it work", etc.), rewrite it as a standalone search query that includes the full context. If it's already clear and standalone, return it as-is.
 
-    # Get and display sources
-    sources = [
-    f"- {r.get('title', 'No title')} | {r.get('url', 'No URL')}"
-    for r in flattened if "content" in r
-    ][:3]
-
-    if sources:
-        print("Sources:")
-        for src in sources:
-            print(src)
+Rewritten search query:"""
+        
+        search_query = llm.invoke(reformulation_prompt).strip()
+        print(f"\n[Searching for: {search_query}]")
     else:
-        print("No sources to show.")
+        search_query = query
+
+    # Step 2: Search with the reformulated query
+    results = search.invoke(search_query)
+    web_results = results.get("results", [])
+
+    print("\nSources:")
+    for r in web_results[:3]:
+        print(f"- {r.get('title', 'No title')} | {r.get('url', 'No URL')}")
+
+    context = "\n".join(r.get("content", "") for r in web_results[:3])
     
-    # Debug to check if snippets is full or empty
-    print("search_results type:", type(flattened))
-    print("Types of items inside search_results:", [type(r) for r in flattened])
+    # Step 3: Build prompt with conversation history
+    history_text = ""
+    if conversation_history:
+        history_text = "Previous conversation:\n"
+        for entry in conversation_history:
+            history_text += f"User: {entry['user']}\nAssistant: {entry['assistant']}\n\n"
+    
+    prompt = f"""{history_text}Current context from web search:
+{context}
 
+Current question: {query}
 
-    # Build conversation history (last 2 turns)
-    history_text = "\n".join([
-        f"Q: {turn['question']}\nA: {turn['answer']}"
-        for turn in chat_history[-2:]
-    ])
+Based on the conversation history (if any) and the current context, provide a helpful answer:"""
 
-    # Full prompt with memory + web context
-    prompt = f"""You are a helpful assistant. Use the previous conversation and the web context to answer the user's new question.
-
-    Conversation history:
-    {history_text if history_text else 'None yet'}
-
-    Current question: {query}
-
-    Context:
-    {snippets[0] if len(snippets) > 0 else ''}
-    {snippets[1] if len(snippets) > 1 else ''}
-    {snippets[2] if len(snippets) > 2 else ''}
-
-    Answer:"""
-
-
-    # 4. Ask the LLM
-    response = llm.invoke(prompt)
-    print(f"\nBot: {response}\n")
-
-    chat_history.append({
-    "question": query,
-    "answer": str(response).strip()
+    # Step 4: Generate answer
+    answer = llm.invoke(prompt)
+    print(f"\nBot: {answer}\n")
+    
+    # Step 5: Save to conversation history
+    conversation_history.append({
+        "user": query,
+        "assistant": answer
     })
-
-    
