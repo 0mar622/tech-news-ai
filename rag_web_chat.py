@@ -19,17 +19,33 @@ while True:
 
 Current user question: {query}
 
-If this question refers to something from the previous conversation (like "it", "that", "how does it work", etc.), rewrite it as a standalone search query that includes the full context. If it's already clear and standalone, return it as-is.
+If this question refers to something from the previous conversation (like "it", "that", "how does it work", etc.), rewrite it as a standalone search query that includes the full context. If it's already clear and standalone, return it exactly as-is.
+
+Only output the rewritten query, nothing else. No explanations or extra text.
 
 Rewritten search query:"""
         
         search_query = llm.invoke(reformulation_prompt).strip()
-        print(f"\n[Searching for: {search_query}]")
+        
+        # Clean up any extra text the LLM might add
+        if '\n' in search_query:
+            search_query = search_query.split('\n')[0].strip()
+        
     else:
         search_query = query
+    
+    # Step 2: Enhance search query for better results (add context keywords for intro questions)
+    # Check if it's a "what is" type question
+    query_lower = search_query.lower()
+    if any(phrase in query_lower for phrase in ["what is", "what are", "explain", "introduction"]):
+        enhanced_query = f"{search_query} introduction basics overview"
+    else:
+        enhanced_query = search_query
+    
+    print(f"\n[Searching for: {search_query}]")
 
-    # Step 2: Search with the reformulated query
-    results = search.invoke(search_query)
+    # Step 3: Search with the enhanced query
+    results = search.invoke(enhanced_query)
     web_results = results.get("results", [])
 
     print("\nSources:")
@@ -38,7 +54,7 @@ Rewritten search query:"""
 
     context = "\n".join(r.get("content", "") for r in web_results[:3])
     
-    # Step 3: Build prompt with conversation history
+    # Step 4: Build prompt with conversation history
     history_text = ""
     if conversation_history:
         history_text = "Previous conversation:\n"
@@ -52,11 +68,11 @@ Current question: {query}
 
 Based on the conversation history (if any) and the current context, provide a helpful answer:"""
 
-    # Step 4: Generate answer
+    # Step 5: Generate answer
     answer = llm.invoke(prompt)
     print(f"\nBot: {answer}\n")
     
-    # Step 5: Save to conversation history
+    # Step 6: Save to conversation history
     conversation_history.append({
         "user": query,
         "assistant": answer
