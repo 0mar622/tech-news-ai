@@ -34,11 +34,21 @@ Rewritten search query:"""
     else:
         search_query = query
     
-    # Step 2: Enhance search query for better results (add context keywords for intro questions)
-    # Check if it's a "what is" type question
+    # Step 2: Enhance search query for better results
     query_lower = search_query.lower()
-    if any(phrase in query_lower for phrase in ["what is", "what are", "explain", "introduction"]):
+    
+    # For "what is" questions - add intro keywords
+    if any(phrase in query_lower for phrase in ["what is", "what are", "explain"]):
         enhanced_query = f"{search_query} introduction basics overview"
+    
+    # For "how/why" questions - add explanation/analysis keywords
+    elif any(phrase in query_lower for phrase in ["how did", "why did", "how does", "why does", "how can", "why is"]):
+        enhanced_query = f"{search_query} reasons explanation analysis"
+    
+    # For comparison questions
+    elif any(phrase in query_lower for phrase in ["difference between", "compare", "vs", "versus"]):
+        enhanced_query = f"{search_query} comparison detailed analysis"
+    
     else:
         enhanced_query = search_query
     
