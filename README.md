@@ -22,7 +22,7 @@ A tech news platform that aggregates articles from TechCrunch, Wired, The Verge,
 
 ## Tech Stack
 
-Python | LangChain | Ollama | Llama 3.1 8B | TavilySearch | REST API
+Python 3.12 | LangChain | Ollama | Llama 3.1 8B | TavilySearch | REST API
 
 ## Status
 
