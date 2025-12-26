@@ -10,10 +10,10 @@ A tech news platform that aggregates articles from TechCrunch, Wired, The Verge,
 - Modify previous responses with commands like "shorten that" or "explain like I'm 10"
 - Intelligently detect whether queries are new questions or modification requests
 - Enhance search queries based on question type for better results
+- Fetch and display latest tech news from TechCrunch, Ars Technica, and MIT Tech Review
 
 ## Planned Features
 
-- Fetch and display tech news articles from TechCrunch, Wired, and The Verge
 - Auto-generate suggested questions based on article content
 - Embed AI chatbot for each article with context-aware explanations
 - Build web interface with news feed and chat functionality
